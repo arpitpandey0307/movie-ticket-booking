@@ -55,6 +55,8 @@ app.get('/health', async (req, res) => {
 
 // Import routes
 import authRoutes from './routes/auth.routes';
+import movieRoutes from './routes/movie.routes';
+import genreRoutes from './routes/genre.routes';
 
 // API routes
 app.get('/api', (req, res) => {
@@ -67,6 +69,8 @@ app.get('/api', (req, res) => {
 
 // Mount routes
 app.use('/api/auth', authRoutes);
+app.use('/api/movies', movieRoutes);
+app.use('/api/genres', genreRoutes);
 
 // 404 handler
 app.use((req, res) => {
