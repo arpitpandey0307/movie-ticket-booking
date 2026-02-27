@@ -1,0 +1,294 @@
+// Enterprise-grade Prisma schema for Movie Ticket Booking Platform
+// Key features: Decimal for money, no LOCKED status, WebhookEvent for idempotency
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  firstName String
+  lastName  String
+  phone     String?
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  theaters  Theater[]
+  bookings  Booking[]
+  seatLocks SeatLock[]
+
+  @@index([email])
+}
+
+enum Role {
+  ADMIN
+  THEATER_OWNER
+  USER
+}
+
+// Movie model
+model Movie {
+  id          String   @id @default(uuid())
+  title       String
+  description String   @db.Text
+  posterUrl   String?
+  duration    Int // in minutes
+  language    String
+  releaseDate DateTime
+  rating      String? // PG, PG-13, R, etc.
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  genres    MovieGenre[]
+  showtimes Showtime[]
+
+  @@index([language])
+  @@index([releaseDate])
+}
+
+// Genre model
+model Genre {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  movies MovieGenre[]
+}
+
+// Junction table for Movie-Genre many-to-many
+model MovieGenre {
+  movieId String
+  genreId String
+
+  movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  genre Genre @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([movieId, genreId])
+  @@index([movieId])
+  @@index([genreId])
+}
+
+// Theater model
+model Theater {
+  id        String        @id @default(uuid())
+  name      String
+  address   String
+  city      String
+  state     String
+  zipCode   String
+  ownerId   String
+  status    TheaterStatus @default(PENDING)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  owner   User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  screens Screen[]
+
+  @@index([city])
+  @@index([ownerId])
+  @@index([status])
+}
+
+enum TheaterStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Screen model
+model Screen {
+  id        String   @id @default(uuid())
+  name      String
+  theaterId String
+  capacity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  theater   Theater    @relation(fields: [theaterId], references: [id], onDelete: Cascade)
+  seats     Seat[]
+  showtimes Showtime[]
+
+  @@unique([theaterId, name])
+  @@index([theaterId])
+}
+
+// Seat model - ENTERPRISE: Decimal for price
+model Seat {
+  id         String   @id @default(uuid())
+  screenId   String
+  rowLabel   String // A, B, C, etc.
+  seatNumber Int // 1, 2, 3, etc.
+  seatType   SeatType @default(REGULAR)
+  price      Decimal  @db.Decimal(10, 2) // ENTERPRISE: Decimal for money
+  createdAt  DateTime @default(now())
+
+  screen        Screen         @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  showtimeSeats ShowtimeSeat[]
+
+  @@unique([screenId, rowLabel, seatNumber])
+  @@index([screenId])
+}
+
+enum SeatType {
+  REGULAR
+  PREMIUM
+  RECLINER
+}
+
+// Showtime model
+model Showtime {
+  id        String   @id @default(uuid())
+  movieId   String
+  screenId  String
+  startTime DateTime
+  endTime   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  movie         Movie          @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  screen        Screen         @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  showtimeSeats ShowtimeSeat[]
+  bookings      Booking[]
+
+  @@index([movieId])
+  @@index([screenId])
+  @@index([startTime])
+}
+
+// ShowtimeSeat model - ENTERPRISE: Only AVAILABLE/BOOKED (no LOCKED)
+model ShowtimeSeat {
+  id         String     @id @default(uuid())
+  showtimeId String
+  seatId     String
+  status     SeatStatus @default(AVAILABLE)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  showtime     Showtime      @relation(fields: [showtimeId], references: [id], onDelete: Cascade)
+  seat         Seat          @relation(fields: [seatId], references: [id], onDelete: Cascade)
+  seatLocks    SeatLock[]
+  bookingSeats BookingSeat[]
+
+  @@unique([showtimeId, seatId])
+  @@index([showtimeId])
+  @@index([seatId])
+  @@index([status])
+  @@index([showtimeId, status]) // ENTERPRISE: Composite index for availability queries
+}
+
+// ENTERPRISE: Only AVAILABLE or BOOKED (no LOCKED status)
+enum SeatStatus {
+  AVAILABLE
+  BOOKED
+}
+
+// SeatLock model - ENTERPRISE: Unique constraint on showtimeSeatId
+model SeatLock {
+  id             String   @id @default(uuid())
+  showtimeSeatId String   @unique // ENTERPRISE: Only one lock per seat
+  userId         String
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+
+  showtimeSeat ShowtimeSeat @relation(fields: [showtimeSeatId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([showtimeSeatId])
+  @@index([userId])
+  @@index([expiresAt])
+  // ENTERPRISE: Partial index for active locks (PostgreSQL)
+  // CREATE INDEX idx_active_locks ON "SeatLock"("showtimeSeatId") WHERE "expiresAt" > NOW();
+}
+
+// Booking model - ENTERPRISE: Decimal for totalAmount
+model Booking {
+  id          String        @id @default(uuid())
+  bookingCode String        @unique
+  userId      String
+  showtimeId  String
+  totalAmount Decimal       @db.Decimal(10, 2) // ENTERPRISE: Decimal for money
+  status      BookingStatus @default(PENDING)
+  paymentId   String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  showtime     Showtime      @relation(fields: [showtimeId], references: [id], onDelete: Cascade)
+  payment      Payment?      @relation(fields: [paymentId], references: [id])
+  bookingSeats BookingSeat[]
+
+  @@index([userId])
+  @@index([showtimeId])
+  @@index([bookingCode])
+  @@index([status])
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+// BookingSeat model - ENTERPRISE: Decimal for price
+model BookingSeat {
+  id             String  @id @default(uuid())
+  bookingId      String
+  showtimeSeatId String
+  price          Decimal @db.Decimal(10, 2) // ENTERPRISE: Decimal for money
+
+  booking      Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  showtimeSeat ShowtimeSeat @relation(fields: [showtimeSeatId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, showtimeSeatId])
+  @@index([bookingId])
+  @@index([showtimeSeatId])
+}
+
+// Payment model - ENTERPRISE: Decimal for amount
+model Payment {
+  id                    String        @id @default(uuid())
+  stripePaymentIntentId String        @unique
+  amount                Decimal       @db.Decimal(10, 2) // ENTERPRISE: Decimal for money
+  currency              String        @default("usd")
+  status                PaymentStatus @default(PENDING)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  bookings Booking[]
+
+  @@index([stripePaymentIntentId])
+  @@index([status])
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+// ENTERPRISE: WebhookEvent model for idempotency
+model WebhookEvent {
+  id              String    @id @default(uuid())
+  stripeEventId   String    @unique // ENTERPRISE: Unique constraint for idempotency
+  eventType       String
+  processed       Boolean   @default(false)
+  payload         Json
+  processingError String?
+  createdAt       DateTime  @default(now())
+  processedAt     DateTime?
+
+  @@index([stripeEventId])
+  @@index([processed])
+  @@index([createdAt])
+}
