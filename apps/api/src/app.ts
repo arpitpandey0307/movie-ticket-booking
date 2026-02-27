@@ -53,7 +53,10 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// API routes will be added here
+// Import routes
+import authRoutes from './routes/auth.routes';
+
+// API routes
 app.get('/api', (req, res) => {
   res.json({
     message: 'Movie Booking Platform API',
@@ -61,6 +64,9 @@ app.get('/api', (req, res) => {
     status: 'running',
   });
 });
+
+// Mount routes
+app.use('/api/auth', authRoutes);
 
 // 404 handler
 app.use((req, res) => {
