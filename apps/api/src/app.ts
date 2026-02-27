@@ -17,7 +17,16 @@ app.use(
   })
 );
 
-// Body parsing
+// CRITICAL: Webhook route MUST use raw body for Stripe signature verification
+// This MUST come BEFORE express.json() middleware
+import webhookRoutes from './routes/webhook.routes';
+app.use(
+  '/api/webhooks/stripe',
+  express.raw({ type: 'application/json' }),
+  webhookRoutes
+);
+
+// Body parsing (after webhook route)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -57,6 +66,12 @@ app.get('/health', async (req, res) => {
 import authRoutes from './routes/auth.routes';
 import movieRoutes from './routes/movie.routes';
 import genreRoutes from './routes/genre.routes';
+import theaterRoutes from './routes/theater.routes';
+import screenRoutes from './routes/screen.routes';
+import showtimeRoutes from './routes/showtime.routes';
+import seatLockRoutes from './routes/seat-lock.routes';
+import bookingRoutes from './routes/booking.routes';
+import paymentRoutes from './routes/payment.routes';
 
 // API routes
 app.get('/api', (req, res) => {
@@ -71,6 +86,12 @@ app.get('/api', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/movies', movieRoutes);
 app.use('/api/genres', genreRoutes);
+app.use('/api/theaters', theaterRoutes);
+app.use('/api/screens', screenRoutes);
+app.use('/api/showtimes', showtimeRoutes);
+app.use('/api/seat-locks', seatLockRoutes);
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // 404 handler
 app.use((req, res) => {

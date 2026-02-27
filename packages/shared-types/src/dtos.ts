@@ -64,6 +64,7 @@ export interface CreateTheaterDTO {
   city: string;
   state: string;
   zipCode: string;
+  timezone: string; // IANA timezone (e.g., "America/New_York")
 }
 
 export interface UpdateTheaterDTO {
@@ -72,6 +73,7 @@ export interface UpdateTheaterDTO {
   city?: string;
   state?: string;
   zipCode?: string;
+  timezone?: string;
 }
 
 export interface TheaterFilters {
@@ -83,24 +85,19 @@ export interface TheaterFilters {
 // Screen DTOs
 export interface CreateScreenDTO {
   name: string;
-  seatLayout: SeatLayout;
+  seats: SeatConfig[]; // Fully explicit layout
 }
 
 export interface UpdateScreenDTO {
   name?: string;
-}
-
-export interface SeatLayout {
-  rows: number;
-  seatsPerRow: number;
-  seatConfig: SeatConfig[];
+  // NO layout updates allowed after creation
 }
 
 export interface SeatConfig {
-  rowLabel: string;
-  seatNumber: number;
+  rowLabel: string;    // "A", "B", "C"
+  seatNumber: number;  // 1, 2, 3
   seatType: SeatType;
-  price: string; // Decimal as string
+  price: string;       // Decimal as string
 }
 
 // Showtime DTOs

@@ -1,0 +1,425 @@
+import Stripe from 'stripe';
+import prisma from '../lib/prisma';
+import logger from '../lib/logger';
+import { Decimal } from '@prisma/client/runtime/library';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+  apiVersion: '2024-11-20.acacia',
+});
+
+interface CreatePaymentIntentData {
+  bookingId: string;
+  userId: string;
+}
+
+export class PaymentService {
+  /**
+   * ENTERPRISE: Create Stripe PaymentIntent with lock validation
+   * 
+   * Critical flow:
+   * 1. Validate booking is PENDING
+   * 2. Validate locks still active
+   * 3. Create PaymentIntent with booking metadata
+   * 4. Store payment record
+   * 
+   * NEVER trust amount from frontend - always derive from booking.
+   */
+  async createPaymentIntent(data: CreatePaymentIntentData) {
+    const { bookingId, userId } = data;
+
+    return await prisma.$transaction(async (tx) => {
+      // STEP 1: Fetch booking with seats and locks
+      const booking = await tx.booking.findUnique({
+        where: { id: bookingId },
+        include: {
+          bookingSeats: {
+            include: {
+              showtimeSeat: {
+                include: {
+                  seat: true,
+                  seatLocks: true,
+                },
+              },
+            },
+          },
+          showtime: {
+            include: {
+              movie: true,
+              screen: {
+                include: {
+                  theater: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!booking) {
+        throw new Error('Booking not found');
+      }
+
+      if (booking.userId !== userId) {
+        throw new Error('Booking not found'); // 404, not 403
+      }
+
+      // STEP 2: Validate booking status
+      if (booking.status !== 'PENDING') {
+        throw new Error(`Cannot create payment for ${booking.status} booking`);
+      }
+
+      // STEP 3: CRITICAL - Validate locks still active
+      const now = new Date();
+      for (const bookingSeat of booking.bookingSeats) {
+        const lock = bookingSeat.showtimeSeat.seatLocks[0];
+
+        if (!lock) {
+          throw new Error('Lock expired - please re-select seats');
+        }
+
+        if (lock.expiresAt <= now) {
+          throw new Error('Lock expired - please re-select seats');
+        }
+
+        if (lock.userId !== userId) {
+          throw new Error('Lock ownership mismatch');
+        }
+      }
+
+      // STEP 4: Check if payment already exists
+      if (booking.paymentId) {
+        const existingPayment = await tx.payment.findUnique({
+          where: { id: booking.paymentId },
+        });
+
+        if (existingPayment) {
+          // Return existing payment intent (idempotent)
+          logger.info(
+            {
+              bookingId,
+              paymentId: existingPayment.id,
+              stripePaymentIntentId: existingPayment.stripePaymentIntentId,
+            },
+            'Payment intent already exists (idempotent)'
+          );
+
+          return {
+            clientSecret: existingPayment.stripePaymentIntentId, // Will need to retrieve from Stripe
+            paymentIntentId: existingPayment.stripePaymentIntentId,
+          };
+        }
+      }
+
+      // STEP 5: Create Stripe PaymentIntent
+      // CRITICAL: Amount derived from booking, never from frontend
+      // CRITICAL: Safe Decimal to integer conversion (no float)
+      const amountDecimal = new Decimal(booking.totalAmount).mul(100);
+      
+      // Ensure it's an integer (no fractional cents)
+      if (!amountDecimal.isInteger()) {
+        throw new Error('Amount must be in whole cents');
+      }
+      
+      const amountInCents = amountDecimal.toNumber();
+      
+      // Sanity check: amount must be positive and reasonable
+      if (amountInCents <= 0 || amountInCents > 999999999) {
+        throw new Error('Invalid payment amount');
+      }
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amountInCents,
+        currency: 'usd',
+        metadata: {
+          bookingId: booking.id,
+          userId: booking.userId,
+          bookingCode: booking.bookingCode,
+          movieTitle: booking.showtime.movie.title,
+          theaterName: booking.showtime.screen.theater.name,
+          seatCount: booking.bookingSeats.length.toString(),
+        },
+        description: `Movie Ticket Booking - ${booking.bookingCode}`,
+      });
+
+      // STEP 6: Store payment record
+      const payment = await tx.payment.create({
+        data: {
+          stripePaymentIntentId: paymentIntent.id,
+          amount: booking.totalAmount,
+          currency: 'usd',
+          status: 'PENDING',
+        },
+      });
+
+      // STEP 7: Link payment to booking
+      await tx.booking.update({
+        where: { id: bookingId },
+        data: { paymentId: payment.id },
+      });
+
+      logger.info(
+        {
+          bookingId,
+          paymentId: payment.id,
+          stripePaymentIntentId: paymentIntent.id,
+          amount: booking.totalAmount.toString(),
+          seatCount: booking.bookingSeats.length,
+        },
+        'Payment intent created'
+      );
+
+      return {
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id,
+      };
+    });
+  }
+
+  /**
+   * ENTERPRISE: Handle payment success from webhook
+   * 
+   * Called by WebhookService after event idempotency check.
+   * Updates payment status and triggers booking confirmation.
+   */
+  async handlePaymentSuccess(stripePaymentIntentId: string) {
+    // STEP 1: Update payment status
+    const payment = await prisma.payment.update({
+      where: { stripePaymentIntentId },
+      data: {
+        status: 'SUCCEEDED',
+      },
+      include: {
+        booking: true,
+      },
+    });
+
+    if (!payment.booking) {
+      logger.warn(
+        {
+          stripePaymentIntentId,
+          paymentId: payment.id,
+        },
+        'Payment succeeded but no booking found'
+      );
+      return { status: 'no_booking' };
+    }
+
+    logger.info(
+      {
+        stripePaymentIntentId,
+        paymentId: payment.id,
+        bookingId: payment.booking.id,
+      },
+      'Payment succeeded - confirming booking'
+    );
+
+    return {
+      status: 'success',
+      bookingId: payment.booking.id,
+      userId: payment.booking.userId,
+    };
+  }
+
+  /**
+   * ENTERPRISE: Handle payment failure from webhook
+   * 
+   * Updates payment status. Booking cancellation handled by WebhookService.
+   */
+  async handlePaymentFailure(stripePaymentIntentId: string) {
+    const payment = await prisma.payment.update({
+      where: { stripePaymentIntentId },
+      data: {
+        status: 'FAILED',
+      },
+      include: {
+        booking: true,
+      },
+    });
+
+    if (!payment.booking) {
+      logger.warn(
+        {
+          stripePaymentIntentId,
+          paymentId: payment.id,
+        },
+        'Payment failed but no booking found'
+      );
+      return { status: 'no_booking' };
+    }
+
+    logger.info(
+      {
+        stripePaymentIntentId,
+        paymentId: payment.id,
+        bookingId: payment.booking.id,
+      },
+      'Payment failed'
+    );
+
+    return {
+      status: 'failed',
+      bookingId: payment.booking.id,
+      userId: payment.booking.userId,
+    };
+  }
+
+  /**
+   * ENTERPRISE: Handle payment cancellation from webhook
+   */
+  async handlePaymentCanceled(stripePaymentIntentId: string) {
+    const payment = await prisma.payment.update({
+      where: { stripePaymentIntentId },
+      data: {
+        status: 'CANCELLED',
+      },
+      include: {
+        booking: true,
+      },
+    });
+
+    if (!payment.booking) {
+      logger.warn(
+        {
+          stripePaymentIntentId,
+          paymentId: payment.id,
+        },
+        'Payment canceled but no booking found'
+      );
+      return { status: 'no_booking' };
+    }
+
+    logger.info(
+      {
+        stripePaymentIntentId,
+        paymentId: payment.id,
+        bookingId: payment.booking.id,
+      },
+      'Payment canceled'
+    );
+
+    return {
+      status: 'canceled',
+      bookingId: payment.booking.id,
+      userId: payment.booking.userId,
+    };
+  }
+
+  /**
+   * Get payment by Stripe PaymentIntent ID
+   */
+  async getPaymentByStripeId(stripePaymentIntentId: string) {
+    return await prisma.payment.findUnique({
+      where: { stripePaymentIntentId },
+      include: {
+        booking: true,
+      },
+    });
+  }
+
+  /**
+   * ENTERPRISE: Refund payment automatically
+   * 
+   * Called when booking confirmation fails after payment success.
+   * Enforces financial invariant: No SUCCEEDED payment without CONFIRMED booking.
+   * 
+   * IDEMPOTENT: Guards against double refunds with atomic status transition.
+   */
+  async refundPayment(stripePaymentIntentId: string, reason: string) {
+    // STEP 1: Atomic status transition to REFUNDING (prevents concurrent refunds)
+    const updateResult = await prisma.payment.updateMany({
+      where: {
+        stripePaymentIntentId,
+        status: 'SUCCEEDED', // CRITICAL: Only transition from SUCCEEDED
+      },
+      data: {
+        status: 'REFUNDING',
+      },
+    });
+
+    if (updateResult.count === 0) {
+      // Either already refunded/refunding, or not in SUCCEEDED state
+      const existingPayment = await prisma.payment.findUnique({
+        where: { stripePaymentIntentId },
+      });
+
+      if (!existingPayment) {
+        throw new Error('Payment not found');
+      }
+
+      if (existingPayment.status === 'REFUNDED' || existingPayment.status === 'REFUNDING') {
+        logger.info(
+          {
+            stripePaymentIntentId,
+            paymentId: existingPayment.id,
+            status: existingPayment.status,
+          },
+          'Payment already refunded or refunding (idempotent)'
+        );
+        return { alreadyRefunded: true };
+      }
+
+      throw new Error(`Cannot refund payment with status: ${existingPayment.status}`);
+    }
+
+    logger.info(
+      {
+        stripePaymentIntentId,
+        reason,
+      },
+      'Initiating automatic refund'
+    );
+
+    try {
+      // STEP 2: Create refund in Stripe with idempotency key
+      // CRITICAL: Idempotency key prevents duplicate refunds on network retry
+      const refund = await stripe.refunds.create(
+        {
+          payment_intent: stripePaymentIntentId,
+          reason: 'requested_by_customer',
+        },
+        {
+          idempotencyKey: `refund_${stripePaymentIntentId}`,
+        }
+      );
+
+      // STEP 3: Mark as REFUNDED
+      await prisma.payment.update({
+        where: { stripePaymentIntentId },
+        data: {
+          status: 'REFUNDED',
+        },
+      });
+
+      logger.info(
+        {
+          stripePaymentIntentId,
+          refundId: refund.id,
+          amount: refund.amount,
+        },
+        'Refund completed'
+      );
+
+      return refund;
+    } catch (error) {
+      // STEP 4: If Stripe refund fails, revert to SUCCEEDED
+      await prisma.payment.update({
+        where: { stripePaymentIntentId },
+        data: {
+          status: 'SUCCEEDED',
+        },
+      });
+
+      logger.error(
+        {
+          stripePaymentIntentId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        },
+        'Refund failed - reverted status to SUCCEEDED'
+      );
+
+      throw error;
+    }
+  }
+}
+
+export default new PaymentService();

@@ -86,6 +86,7 @@ model Theater {
   city      String
   state     String
   zipCode   String
+  timezone  String        @default("UTC") // ENTERPRISE: Explicit timezone (e.g., "America/New_York")
   ownerId   String
   status    TheaterStatus @default(PENDING)
   createdAt DateTime      @default(now())
@@ -97,6 +98,7 @@ model Theater {
   @@index([city])
   @@index([ownerId])
   @@index([status])
+  @@index([city, status]) // ENTERPRISE: Composite index for public browsing
 }
 
 enum TheaterStatus {
@@ -163,6 +165,7 @@ model Showtime {
   @@index([movieId])
   @@index([screenId])
   @@index([startTime])
+  @@index([screenId, startTime]) // ENTERPRISE: Composite index for conflict detection
 }
 
 // ShowtimeSeat model - ENTERPRISE: Only AVAILABLE/BOOKED (no LOCKED)
@@ -218,12 +221,12 @@ model Booking {
   showtimeId  String
   totalAmount Decimal       @db.Decimal(10, 2) // ENTERPRISE: Decimal for money
   status      BookingStatus @default(PENDING)
-  paymentId   String?
+  paymentId   String?       @unique // ENTERPRISE: One booking = one payment
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  showtime     Showtime      @relation(fields: [showtimeId], references: [id], onDelete: Cascade)
+  showtime     Showtime      @relation(fields: [showtimeId], references: [id], onDelete: Restrict)
   payment      Payment?      @relation(fields: [paymentId], references: [id])
   bookingSeats BookingSeat[]
 
@@ -231,6 +234,7 @@ model Booking {
   @@index([showtimeId])
   @@index([bookingCode])
   @@index([status])
+  @@index([paymentId]) // ENTERPRISE: Index for payment lookups
 }
 
 enum BookingStatus {
@@ -264,7 +268,7 @@ model Payment {
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
-  bookings Booking[]
+  booking Booking? // ENTERPRISE: One-to-one relationship
 
   @@index([stripePaymentIntentId])
   @@index([status])
@@ -275,6 +279,8 @@ enum PaymentStatus {
   SUCCEEDED
   FAILED
   CANCELLED
+  REFUNDING // ENTERPRISE: Intermediate state during refund
+  REFUNDED
 }
 
 // ENTERPRISE: WebhookEvent model for idempotency

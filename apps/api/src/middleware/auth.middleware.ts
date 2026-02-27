@@ -46,6 +46,24 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+// Optional authentication - doesn't fail if no token
+export function optionalAuthenticate(req: Request, res: Response, next: NextFunction) {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const payload = verifyToken(token);
+      req.user = payload;
+    }
+    // If no token or invalid, continue without user (public access)
+    next();
+  } catch (error) {
+    // Invalid token - continue as public user
+    next();
+  }
+}
+
 export function authorize(...allowedRoles: Role[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {

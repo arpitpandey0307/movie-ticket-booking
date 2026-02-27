@@ -39,6 +39,30 @@ export const createTheaterSchema = z.object({
   city: z.string().min(1, 'City is required'),
   state: z.string().min(1, 'State is required'),
   zipCode: z.string().regex(/^\d{5}(-\d{4})?$/, 'Invalid zip code'),
+  timezone: z.string().min(1, 'Timezone is required (e.g., "America/New_York")'),
+});
+
+export const updateTheaterSchema = z.object({
+  name: z.string().min(1).optional(),
+  address: z.string().min(1).optional(),
+  city: z.string().min(1).optional(),
+  state: z.string().min(1).optional(),
+  zipCode: z.string().regex(/^\d{5}(-\d{4})?$/).optional(),
+  timezone: z.string().min(1).optional(),
+});
+
+export const getTheatersQuerySchema = z.object({
+  city: z.string().optional(),
+  status: z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional(),
+  ownerId: z.string().uuid().optional(),
+});
+
+export const approveTheaterSchema = z.object({
+  // No body params - ID from route param
+});
+
+export const rejectTheaterSchema = z.object({
+  reason: z.string().optional(),
 });
 
 // Showtime validators
@@ -46,6 +70,36 @@ export const createShowtimeSchema = z.object({
   movieId: z.string().uuid('Invalid movie ID'),
   screenId: z.string().uuid('Invalid screen ID'),
   startTime: z.string().datetime(),
+});
+
+// Screen validators
+export const seatConfigSchema = z.object({
+  rowLabel: z
+    .string()
+    .min(1, 'Row label is required')
+    .max(3, 'Row label must be 1-3 characters')
+    .regex(/^[A-Z0-9]+$/, 'Row label must be uppercase alphanumeric only'),
+  seatNumber: z.number().int().min(1).max(999, 'Seat number must be between 1 and 999'),
+  seatType: z.enum(['REGULAR', 'PREMIUM', 'RECLINER']),
+  price: z
+    .string()
+    .regex(/^\d+\.\d{2}$/, 'Price must be in format XX.XX (e.g., "10.00")')
+    .refine((val) => {
+      const num = parseFloat(val);
+      return num >= 0 && num <= 9999.99;
+    }, 'Price must be between 0.00 and 9999.99'),
+});
+
+export const createScreenSchema = z.object({
+  name: z.string().min(1, 'Screen name is required'),
+  seats: z
+    .array(seatConfigSchema)
+    .min(1, 'At least one seat is required')
+    .max(1000, 'Screen cannot have more than 1000 seats'),
+});
+
+export const updateScreenSchema = z.object({
+  name: z.string().min(1).optional(),
 });
 
 // Booking validators
