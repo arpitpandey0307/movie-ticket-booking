@@ -1,0 +1,43 @@
+{
+  "name": "movie-ticket-booking-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Enterprise-grade movie ticket booking platform with separated frontend and backend",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules"
+  },
+  "devDependencies": {
+    "prettier": "^3.1.1",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/arpitpandey0307/movie-ticket-booking.git"
+  },
+  "keywords": [
+    "movie-booking",
+    "ticket-booking",
+    "enterprise",
+    "monorepo",
+    "nextjs",
+    "express",
+    "prisma",
+    "redis",
+    "stripe"
+  ],
+  "author": "",
+  "license": "MIT"
+}
