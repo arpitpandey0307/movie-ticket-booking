@@ -14,13 +14,13 @@ async function startServer() {
     await prisma.$connect();
     logger.info('Database connected');
 
-    // Test Redis connection (optional for now)
+    // Try to connect to Redis (optional)
     try {
+      await redis.connect();
       await redis.ping();
       logger.info('Redis connected');
     } catch (redisError) {
-      logger.warn('Redis connection failed - continuing without Redis');
-      logger.warn({ redisError }, 'Redis error details');
+      logger.warn('Redis not available - continuing without caching');
     }
 
     // Start server
@@ -39,14 +39,22 @@ async function startServer() {
 process.on('SIGTERM', async () => {
   logger.info('SIGTERM received, shutting down gracefully');
   await prisma.$disconnect();
-  await redis.quit();
+  try {
+    await redis.quit();
+  } catch (e) {
+    // Redis might not be connected
+  }
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   logger.info('SIGINT received, shutting down gracefully');
   await prisma.$disconnect();
-  await redis.quit();
+  try {
+    await redis.quit();
+  } catch (e) {
+    // Redis might not be connected
+  }
   process.exit(0);
 });
 

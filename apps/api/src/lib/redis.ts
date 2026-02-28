@@ -3,15 +3,20 @@ import logger from './logger';
 
 const redisClientSingleton = () => {
   const client = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-    maxRetriesPerRequest: 3,
+    maxRetriesPerRequest: 1,
     retryStrategy(times) {
-      const delay = Math.min(times * 50, 2000);
-      return delay;
+      // Stop retrying after first attempt
+      if (times > 1) {
+        return null;
+      }
+      return 100;
     },
+    lazyConnect: true, // Don't connect immediately
+    enableOfflineQueue: false, // Don't queue commands when offline
   });
 
   client.on('error', (err) => {
-    logger.error({ err }, 'Redis connection error');
+    logger.warn({ err }, 'Redis connection error - Redis features disabled');
   });
 
   client.on('connect', () => {
