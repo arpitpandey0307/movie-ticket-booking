@@ -14,9 +14,14 @@ async function startServer() {
     await prisma.$connect();
     logger.info('Database connected');
 
-    // Test Redis connection
-    await redis.ping();
-    logger.info('Redis connected');
+    // Test Redis connection (optional for now)
+    try {
+      await redis.ping();
+      logger.info('Redis connected');
+    } catch (redisError) {
+      logger.warn('Redis connection failed - continuing without Redis');
+      logger.warn({ redisError }, 'Redis error details');
+    }
 
     // Start server
     app.listen(PORT, () => {

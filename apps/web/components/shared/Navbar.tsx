@@ -19,7 +19,7 @@ export default function Navbar() {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link href="/" className="text-xl font-bold">
-              🎬 MovieBooking
+              🎬 BlueScreen
             </Link>
             <div className="ml-10 flex items-center space-x-4">
               <Link href="/movies" className="hover:text-indigo-200">

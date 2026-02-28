@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Navbar from "@/components/shared/Navbar";
+import EnhancedNavbar from "@/components/shared/EnhancedNavbar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Movie Ticket Booking Platform",
-  description: "Book movie tickets online - Enterprise-grade booking system",
+  title: "BlueScreen - Movie Ticket Booking",
+  description: "Book movie tickets online with BlueScreen - Your premium cinema experience",
 };
 
 export default function RootLayout({
@@ -28,7 +28,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Navbar />
+        <EnhancedNavbar />
         {children}
       </body>
     </html>
