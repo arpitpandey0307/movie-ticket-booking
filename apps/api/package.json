@@ -7,7 +7,9 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc || exit 0",
-    "start": "node dist/server.js",
+    "start": "npx prisma migrate deploy && npx prisma db seed && node dist/server.js",
+    "start:prod": "node dist/server.js",
+    "seed": "tsx prisma/seed.ts",
     "test": "jest",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
@@ -17,6 +19,9 @@
     "corrupt-db": "tsx scripts/corrupt-db.ts",
     "test-payment-flow": "tsx scripts/test-payment-flow.ts",
     "simulate-webhook": "tsx scripts/simulate-webhook.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.8.0",
