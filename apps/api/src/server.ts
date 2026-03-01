@@ -27,8 +27,8 @@ async function startServer() {
       logger.warn('Redis not available - continuing without caching');
     }
 
-    // Start server
-    app.listen(PORT, () => {
+    // Start server - bind to 0.0.0.0 for Railway
+    app.listen(PORT, '0.0.0.0', () => {
       logger.info(`Server running on port ${PORT}`);
       logger.info(`Environment: ${process.env.NODE_ENV}`);
       logger.info(`Health check: http://localhost:${PORT}/health`);
