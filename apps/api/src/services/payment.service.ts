@@ -34,6 +34,11 @@ export class PaymentService {
   async createPaymentIntent(data: CreatePaymentIntentData) {
     const { bookingId, userId } = data;
 
+    // Check if Stripe is configured
+    if (!stripe) {
+      throw new Error('Payment system not configured. Please contact support.');
+    }
+
     // ============================================================
     // PHASE 1: VALIDATION (DB Transaction - Fast)
     // ============================================================
