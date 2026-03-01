@@ -295,14 +295,12 @@ export class SeatLockService {
           lt: now,
         },
       },
-      take: batchSize,
     });
 
     if (result.count > 0) {
       logger.info(
         {
           count: result.count,
-          batchSize,
         },
         'Expired locks cleaned'
       );

@@ -9,14 +9,15 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
 export interface JwtPayload {
+  id: string;
   userId: string;
   email: string;
-  role: string;
+  role: 'ADMIN' | 'THEATER_OWNER' | 'USER';
 }
 
 export function generateToken(payload: JwtPayload): string {
-  return jwt.sign(payload, JWT_SECRET, {
-    expiresIn: JWT_EXPIRES_IN,
+  return jwt.sign(payload, JWT_SECRET as string, {
+    expiresIn: JWT_EXPIRES_IN as string,
   });
 }
 
