@@ -10,6 +10,6 @@
     "restartPolicyMaxRetries": 10
   },
   "env": {
-    "NEXT_PUBLIC_API_URL": "https://movie-ticket-booking-production.up.railway.app"
+    "NEXT_PUBLIC_API_URL": "https://movie-bookingapi-production.up.railway.app"
   }
 }
