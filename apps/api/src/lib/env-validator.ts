@@ -10,6 +10,9 @@
 const REQUIRED_ENV_VARS = [
   'DATABASE_URL',
   'JWT_SECRET',
+] as const;
+
+const OPTIONAL_ENV_VARS = [
   'STRIPE_SECRET_KEY',
   'CORS_ORIGIN',
 ] as const;
@@ -45,6 +48,22 @@ export function validateEnvironment(): void {
     console.error('\nApplication cannot start without these variables.');
     console.error('Please check your .env file or environment configuration.\n');
     process.exit(1);
+  }
+
+  // Warn about optional variables
+  const missingOptional: string[] = [];
+  for (const varName of OPTIONAL_ENV_VARS) {
+    if (!process.env[varName]) {
+      missingOptional.push(varName);
+    }
+  }
+
+  if (missingOptional.length > 0) {
+    console.warn('⚠️  WARNING: Optional environment variables not set:');
+    missingOptional.forEach((varName) => {
+      console.warn(`   - ${varName}`);
+    });
+    console.warn('Some features may not work correctly.\n');
   }
 
   // Validate DATABASE_URL format for production
