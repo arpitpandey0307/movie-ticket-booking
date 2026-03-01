@@ -1,0 +1,16 @@
+[phases.setup]
+nixPkgs = ["nodejs", "npm"]
+
+[phases.install]
+cmds = [
+  "npm install --workspace=packages/prisma --workspace=packages/shared-types --workspace=apps/api"
+]
+
+[phases.build]
+cmds = [
+  "npx prisma generate --schema=../../packages/prisma/schema.prisma",
+  "npm run build"
+]
+
+[start]
+cmd = "npm start"
