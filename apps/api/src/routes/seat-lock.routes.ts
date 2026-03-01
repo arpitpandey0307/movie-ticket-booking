@@ -12,7 +12,7 @@ const router = Router();
 router.post('/', authenticate, async (req, res, next) => {
   try {
     const { showtimeSeatIds } = req.body;
-    const userId = req.user!.id;
+    const userId = req.user!.userId;
 
     if (!Array.isArray(showtimeSeatIds) || showtimeSeatIds.length === 0) {
       return res.status(400).json({ error: 'showtimeSeatIds must be a non-empty array' });
@@ -25,7 +25,7 @@ router.post('/', authenticate, async (req, res, next) => {
 
     res.status(201).json({ locks });
   } catch (error: any) {
-    logger.error({ error: error.message, userId: req.user?.id }, 'Lock seats failed');
+    logger.error({ error: error.message, userId: req.user?.userId }, 'Lock seats failed');
     next(error);
   }
 });
@@ -36,13 +36,13 @@ router.post('/', authenticate, async (req, res, next) => {
  */
 router.get('/my-locks', authenticate, async (req, res, next) => {
   try {
-    const userId = req.user!.id;
+    const userId = req.user!.userId;
 
     const locks = await seatLockService.getUserLocks(userId);
 
     res.json({ locks });
   } catch (error: any) {
-    logger.error({ error: error.message, userId: req.user?.id }, 'Get user locks failed');
+    logger.error({ error: error.message, userId: req.user?.userId }, 'Get user locks failed');
     next(error);
   }
 });
@@ -54,7 +54,7 @@ router.get('/my-locks', authenticate, async (req, res, next) => {
 router.delete('/', authenticate, async (req, res, next) => {
   try {
     const { lockIds } = req.body;
-    const userId = req.user!.id;
+    const userId = req.user!.userId;
 
     if (!Array.isArray(lockIds) || lockIds.length === 0) {
       return res.status(400).json({ error: 'lockIds must be a non-empty array' });
@@ -64,7 +64,7 @@ router.delete('/', authenticate, async (req, res, next) => {
 
     res.status(204).send();
   } catch (error: any) {
-    logger.error({ error: error.message, userId: req.user?.id }, 'Release locks failed');
+    logger.error({ error: error.message, userId: req.user?.userId }, 'Release locks failed');
     next(error);
   }
 });

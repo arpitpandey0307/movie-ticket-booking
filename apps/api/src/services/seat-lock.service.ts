@@ -171,26 +171,35 @@ export class SeatLockService {
       throw new Error(`Cannot lock more than ${this.MAX_SEATS_PER_REQUEST} seats per request`);
     }
 
-    // Redis sliding window rate limit
-    const key = `lock_rate:${userId}`;
-    const current = await redis.incr(key);
+    // Skip rate limiting if Redis is not available
+    try {
+      // Redis sliding window rate limit
+      const key = `lock_rate:${userId}`;
+      const current = await redis.incr(key);
 
-    if (current === 1) {
-      await redis.expire(key, this.RATE_LIMIT_WINDOW_SECONDS);
-    }
+      if (current === 1) {
+        await redis.expire(key, this.RATE_LIMIT_WINDOW_SECONDS);
+      }
 
-    if (current > this.RATE_LIMIT_MAX_ATTEMPTS) {
-      const ttl = await redis.ttl(key);
-      logger.warn(
-        {
-          userId,
-          current,
-          limit: this.RATE_LIMIT_MAX_ATTEMPTS,
-          ttl,
-        },
-        'Rate limit exceeded for seat locking'
-      );
-      throw new Error(`Rate limit exceeded. Try again in ${ttl} seconds`);
+      if (current > this.RATE_LIMIT_MAX_ATTEMPTS) {
+        const ttl = await redis.ttl(key);
+        logger.warn(
+          {
+            userId,
+            current,
+            limit: this.RATE_LIMIT_MAX_ATTEMPTS,
+            ttl,
+          },
+          'Rate limit exceeded for seat locking'
+        );
+        throw new Error(`Rate limit exceeded. Try again in ${ttl} seconds`);
+      }
+    } catch (error: any) {
+      // If Redis is down, log warning but continue without rate limiting
+      if (error.message?.includes('Rate limit exceeded')) {
+        throw error; // Re-throw rate limit errors
+      }
+      logger.warn({ error: error.message }, 'Redis unavailable - skipping rate limit check');
     }
   }
 

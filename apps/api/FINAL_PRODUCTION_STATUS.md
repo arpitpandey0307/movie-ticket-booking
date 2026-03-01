@@ -22,7 +22,8 @@ This system has been engineered to production-grade standards for handling:
 - **Rate Limiting**: Redis-based (horizontal scaling ready)
 
 ### 2. Payment Integration Layer
-- **PaymentIntent Creation**: Lock validation before payment
+- **PaymentIntent Creation**: Three-phase pattern (validate → Stripe → persist)
+- **Transaction Boundaries**: No external I/O inside DB transactions
 - **Webhook Processing**: Idempotent with unique constraint
 - **Automatic Refunds**: Enforces financial invariant
 - **Signature Verification**: Raw body handling prevents replay attacks
@@ -105,7 +106,39 @@ After `payment_intent.succeeded` webhook, the system MUST be in one of these sta
 
 ## Critical Implementation Details
 
-### 1. Webhook Raw Body Handling
+### 1. Transaction Boundary Discipline (CRITICAL)
+```typescript
+// ❌ WRONG: External I/O inside transaction
+await prisma.$transaction(async (tx) => {
+  const paymentIntent = await stripe.paymentIntents.create(...); // Holds connection!
+});
+
+// ✅ CORRECT: Three-phase pattern
+// Phase 1: Validate (DB transaction - fast)
+const { booking } = await prisma.$transaction(async (tx) => {
+  // Validate locks, status, etc.
+  return { booking };
+});
+
+// Phase 2: External I/O (no transaction)
+const paymentIntent = await stripe.paymentIntents.create(...);
+
+// Phase 3: Persist (DB transaction - fast)
+await prisma.$transaction(async (tx) => {
+  // Store payment, link to booking
+});
+```
+
+**Why**: 
+- Prisma transactions hold DB connections open
+- Stripe API calls take 200-1000ms
+- Connection poolers (Supabase/PgBouncer) recycle idle connections
+- Results in P2028 "Transaction not found" errors
+- **This is not a bug - it's an architectural violation**
+
+**Rule**: Never perform external API calls inside database transactions.
+
+### 2. Webhook Raw Body Handling
 ```typescript
 // CRITICAL: MUST come BEFORE express.json()
 app.use(
@@ -120,7 +153,7 @@ app.use(express.json());
 
 **Why**: Stripe signature verification requires raw body. If JSON parsed first, verification fails.
 
-### 2. Amount Conversion Safety
+### 3. Amount Conversion Safety
 ```typescript
 const amountDecimal = new Decimal(booking.totalAmount).mul(100);
 
@@ -137,7 +170,7 @@ if (amountInCents <= 0 || amountInCents > 999999999) {
 
 **Why**: No float conversion. Decimal throughout. Integer check prevents fractional cents.
 
-### 3. Payment-Booking Relationship
+### 4. Payment-Booking Relationship
 ```prisma
 model Booking {
   paymentId String? @unique  // Owns the FK
@@ -151,7 +184,7 @@ model Payment {
 
 **Why**: Single owning FK prevents circular constraints. Prisma one-to-one pattern.
 
-### 4. Retry Logic Scope
+### 5. Retry Logic Scope
 ```typescript
 // Retry ONLY serialization errors
 const isSerializationError =

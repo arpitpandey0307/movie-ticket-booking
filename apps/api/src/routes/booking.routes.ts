@@ -12,7 +12,7 @@ const router = Router();
 router.post('/', authenticate, async (req, res, next) => {
   try {
     const { showtimeId, showtimeSeatIds } = req.body;
-    const userId = req.user!.id;
+    const userId = req.user!.userId;
 
     if (!showtimeId) {
       return res.status(400).json({ error: 'showtimeId is required' });
@@ -30,7 +30,7 @@ router.post('/', authenticate, async (req, res, next) => {
 
     res.status(201).json({ booking });
   } catch (error: any) {
-    logger.error({ error: error.message, userId: req.user?.id }, 'Create booking failed');
+    logger.error({ error: error.message, userId: req.user?.userId }, 'Create booking failed');
     next(error);
   }
 });
@@ -42,7 +42,7 @@ router.post('/', authenticate, async (req, res, next) => {
 router.get('/:id', authenticate, async (req, res, next) => {
   try {
     const { id } = req.params;
-    const userId = req.user!.id;
+    const userId = req.user!.userId;
 
     const booking = await bookingService.getBookingById(id, userId);
 
@@ -59,13 +59,13 @@ router.get('/:id', authenticate, async (req, res, next) => {
  */
 router.get('/', authenticate, async (req, res, next) => {
   try {
-    const userId = req.user!.id;
+    const userId = req.user!.userId;
 
     const bookings = await bookingService.getUserBookings(userId);
 
     res.json({ bookings });
   } catch (error: any) {
-    logger.error({ error: error.message, userId: req.user?.id }, 'Get user bookings failed');
+    logger.error({ error: error.message, userId: req.user?.userId }, 'Get user bookings failed');
     next(error);
   }
 });
@@ -77,7 +77,7 @@ router.get('/', authenticate, async (req, res, next) => {
 router.delete('/:id', authenticate, async (req, res, next) => {
   try {
     const { id } = req.params;
-    const userId = req.user!.id;
+    const userId = req.user!.userId;
 
     await bookingService.cancelBooking(id, userId);
 

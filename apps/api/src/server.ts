@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+import { validateEnvironment } from './lib/env-validator';
 import app from './app';
 import logger from './lib/logger';
 import prisma from './lib/prisma';
@@ -10,6 +11,9 @@ const PORT = process.env.PORT || 4000;
 
 async function startServer() {
   try {
+    // CRITICAL: Validate environment variables first
+    validateEnvironment();
+
     // Test database connection
     await prisma.$connect();
     logger.info('Database connected');

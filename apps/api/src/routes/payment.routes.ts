@@ -14,7 +14,7 @@ const router = Router();
 router.post('/create-intent', authenticate, async (req, res, next) => {
   try {
     const { bookingId } = req.body;
-    const userId = req.user!.id;
+    const userId = req.user!.userId;
 
     if (!bookingId) {
       return res.status(400).json({ error: 'bookingId is required' });
@@ -31,7 +31,7 @@ router.post('/create-intent', authenticate, async (req, res, next) => {
       {
         error: error.message,
         bookingId: req.body.bookingId,
-        userId: req.user?.id,
+        userId: req.user?.userId,
       },
       'Create payment intent failed'
     );

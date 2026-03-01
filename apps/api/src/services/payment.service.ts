@@ -1,11 +1,8 @@
 import Stripe from 'stripe';
 import prisma from '../lib/prisma';
 import logger from '../lib/logger';
+import stripe from '../lib/stripe';
 import { Decimal } from '@prisma/client/runtime/library';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2024-11-20.acacia',
-});
 
 interface CreatePaymentIntentData {
   bookingId: string;
@@ -16,19 +13,32 @@ export class PaymentService {
   /**
    * ENTERPRISE: Create Stripe PaymentIntent with lock validation
    * 
-   * Critical flow:
-   * 1. Validate booking is PENDING
-   * 2. Validate locks still active
-   * 3. Create PaymentIntent with booking metadata
-   * 4. Store payment record
+   * ARCHITECTURE: Three-phase pattern to avoid external I/O inside DB transactions
    * 
-   * NEVER trust amount from frontend - always derive from booking.
+   * Phase 1: Validate (DB Transaction - Fast)
+   *   - Fetch booking
+   *   - Validate status and locks
+   *   - Check idempotency
+   * 
+   * Phase 2: Create PaymentIntent (External I/O - No DB transaction)
+   *   - Call Stripe API
+   *   - No DB connection held
+   * 
+   * Phase 3: Persist (DB Transaction - Fast)
+   *   - Store payment record
+   *   - Link to booking
+   * 
+   * CRITICAL: Never perform external API calls inside DB transactions.
+   * Violating this causes P2028 errors under connection pooling.
    */
   async createPaymentIntent(data: CreatePaymentIntentData) {
     const { bookingId, userId } = data;
 
-    return await prisma.$transaction(async (tx) => {
-      // STEP 1: Fetch booking with seats and locks
+    // ============================================================
+    // PHASE 1: VALIDATION (DB Transaction - Fast)
+    // ============================================================
+    const validationResult = await prisma.$transaction(async (tx) => {
+      // Fetch booking with seats and locks
       const booking = await tx.booking.findUnique({
         where: { id: bookingId },
         include: {
@@ -63,12 +73,12 @@ export class PaymentService {
         throw new Error('Booking not found'); // 404, not 403
       }
 
-      // STEP 2: Validate booking status
+      // Validate booking status
       if (booking.status !== 'PENDING') {
         throw new Error(`Cannot create payment for ${booking.status} booking`);
       }
 
-      // STEP 3: CRITICAL - Validate locks still active
+      // CRITICAL - Validate locks still active
       const now = new Date();
       for (const bookingSeat of booking.bookingSeats) {
         const lock = bookingSeat.showtimeSeat.seatLocks[0];
@@ -86,14 +96,13 @@ export class PaymentService {
         }
       }
 
-      // STEP 4: Check if payment already exists
+      // Check if payment already exists (idempotency)
       if (booking.paymentId) {
         const existingPayment = await tx.payment.findUnique({
           where: { id: booking.paymentId },
         });
 
         if (existingPayment) {
-          // Return existing payment intent (idempotent)
           logger.info(
             {
               bookingId,
@@ -104,45 +113,75 @@ export class PaymentService {
           );
 
           return {
-            clientSecret: existingPayment.stripePaymentIntentId, // Will need to retrieve from Stripe
+            alreadyExists: true,
             paymentIntentId: existingPayment.stripePaymentIntentId,
+            // Note: clientSecret would need to be retrieved from Stripe if needed
           };
         }
       }
 
-      // STEP 5: Create Stripe PaymentIntent
-      // CRITICAL: Amount derived from booking, never from frontend
-      // CRITICAL: Safe Decimal to integer conversion (no float)
-      const amountDecimal = new Decimal(booking.totalAmount).mul(100);
-      
-      // Ensure it's an integer (no fractional cents)
-      if (!amountDecimal.isInteger()) {
-        throw new Error('Amount must be in whole cents');
-      }
-      
-      const amountInCents = amountDecimal.toNumber();
-      
-      // Sanity check: amount must be positive and reasonable
-      if (amountInCents <= 0 || amountInCents > 999999999) {
-        throw new Error('Invalid payment amount');
-      }
+      // Return validated booking data for Phase 2
+      return {
+        alreadyExists: false,
+        booking,
+      };
+    });
 
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: amountInCents,
-        currency: 'usd',
-        metadata: {
-          bookingId: booking.id,
-          userId: booking.userId,
-          bookingCode: booking.bookingCode,
-          movieTitle: booking.showtime.movie.title,
-          theaterName: booking.showtime.screen.theater.name,
-          seatCount: booking.bookingSeats.length.toString(),
-        },
-        description: `Movie Ticket Booking - ${booking.bookingCode}`,
-      });
+    // Handle idempotency case
+    if (validationResult.alreadyExists) {
+      return {
+        clientSecret: null, // Would need Stripe API call to retrieve
+        paymentIntentId: validationResult.paymentIntentId,
+      };
+    }
 
-      // STEP 6: Store payment record
-      const payment = await tx.payment.create({
+    // Type narrowing: booking is guaranteed to exist here
+    if (!validationResult.booking) {
+      throw new Error('Validation failed: booking not found');
+    }
+
+    const booking = validationResult.booking;
+
+    // ============================================================
+    // PHASE 2: CREATE STRIPE PAYMENT INTENT (External I/O - No DB Transaction)
+    // ============================================================
+    
+    // Calculate amount (derived from booking, never from frontend)
+    const amountDecimal = new Decimal(booking.totalAmount).mul(100);
+    
+    // Ensure it's an integer (no fractional cents)
+    if (!amountDecimal.isInteger()) {
+      throw new Error('Amount must be in whole cents');
+    }
+    
+    const amountInCents = amountDecimal.toNumber();
+    
+    // Sanity check: amount must be positive and reasonable
+    if (amountInCents <= 0 || amountInCents > 999999999) {
+      throw new Error('Invalid payment amount');
+    }
+
+    // Call Stripe API (no DB transaction open)
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amountInCents,
+      currency: 'usd',
+      metadata: {
+        bookingId: booking.id,
+        userId: booking.userId,
+        bookingCode: booking.bookingCode,
+        movieTitle: booking.showtime.movie.title,
+        theaterName: booking.showtime.screen.theater.name,
+        seatCount: booking.bookingSeats.length.toString(),
+      },
+      description: `Movie Ticket Booking - ${booking.bookingCode}`,
+    });
+
+    // ============================================================
+    // PHASE 3: PERSIST PAYMENT RECORD (DB Transaction - Fast)
+    // ============================================================
+    const payment = await prisma.$transaction(async (tx) => {
+      // Store payment record
+      const newPayment = await tx.payment.create({
         data: {
           stripePaymentIntentId: paymentIntent.id,
           amount: booking.totalAmount,
@@ -151,28 +190,30 @@ export class PaymentService {
         },
       });
 
-      // STEP 7: Link payment to booking
+      // Link payment to booking
       await tx.booking.update({
         where: { id: bookingId },
-        data: { paymentId: payment.id },
+        data: { paymentId: newPayment.id },
       });
 
-      logger.info(
-        {
-          bookingId,
-          paymentId: payment.id,
-          stripePaymentIntentId: paymentIntent.id,
-          amount: booking.totalAmount.toString(),
-          seatCount: booking.bookingSeats.length,
-        },
-        'Payment intent created'
-      );
-
-      return {
-        clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id,
-      };
+      return newPayment;
     });
+
+    logger.info(
+      {
+        bookingId,
+        paymentId: payment.id,
+        stripePaymentIntentId: paymentIntent.id,
+        amount: booking.totalAmount.toString(),
+        seatCount: booking.bookingSeats.length,
+      },
+      'Payment intent created (3-phase pattern)'
+    );
+
+    return {
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+    };
   }
 
   /**

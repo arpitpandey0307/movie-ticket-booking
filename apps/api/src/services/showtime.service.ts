@@ -221,14 +221,19 @@ export class ShowtimeService {
             theater: true,
           },
         },
-        _count: {
-          select: {
-            showtimeSeats: {
+        showtimeSeats: {
+          include: {
+            seat: true,
+            seatLocks: {
               where: {
-                status: 'AVAILABLE',
+                expiresAt: { gt: new Date() },
               },
             },
           },
+          orderBy: [
+            { seat: { rowLabel: 'asc' } },
+            { seat: { seatNumber: 'asc' } },
+          ],
         },
       },
     });
