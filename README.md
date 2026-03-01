@@ -173,23 +173,31 @@ npm run test:property
 
 ## 🚢 Deployment
 
-### Quick Deploy to Railway
+### 🚀 Deploy to Railway (Recommended)
 
-**Backend API (Already Deployed ✅)**
-- See [RAILWAY_SETUP.md](./RAILWAY_SETUP.md) for API deployment details
-- API URL: `https://your-api-service.up.railway.app`
+**Backend API** ✅ Already Deployed
+- Running on Railway with PostgreSQL and Redis
+- See [RAILWAY_SETUP.md](./RAILWAY_SETUP.md) for details
 
-**Frontend Web App (Deploy Now! 🚀)**
-- See [QUICK_WEB_DEPLOY.md](./QUICK_WEB_DEPLOY.md) for 5-minute deployment
-- See [WEB_DEPLOYMENT_GUIDE.md](./WEB_DEPLOYMENT_GUIDE.md) for detailed guide
-- See [WEB_DEPLOYMENT_CHECKLIST.md](./WEB_DEPLOYMENT_CHECKLIST.md) for step-by-step checklist
+**Frontend Web App** 🎯 Ready to Deploy
+- **👉 Start Here:** [START_HERE.md](./START_HERE.md) - Your deployment starting point
+- **⚡ Quick Deploy:** [DEPLOY_WEB_NOW.md](./DEPLOY_WEB_NOW.md) - 10-minute guide
+- **📋 Reference:** [QUICK_DEPLOY_REFERENCE.md](./QUICK_DEPLOY_REFERENCE.md) - One-page cheat sheet
+- **📊 Track Progress:** [DEPLOYMENT_STATUS.md](./DEPLOYMENT_STATUS.md) - Checklist tracker
+- **🐛 Troubleshooting:** [WEB_DEPLOYMENT_TROUBLESHOOTING.md](./WEB_DEPLOYMENT_TROUBLESHOOTING.md) - Fix issues
 
-### Deployment Guides
+### 📚 All Deployment Guides
 
-- **API Deployment**: [RAILWAY_SETUP.md](./RAILWAY_SETUP.md)
-- **Web Deployment**: [WEB_DEPLOYMENT_GUIDE.md](./WEB_DEPLOYMENT_GUIDE.md)
-- **Quick Start**: [QUICK_WEB_DEPLOY.md](./QUICK_WEB_DEPLOY.md)
-- **Troubleshooting**: [WEB_DEPLOYMENT_TROUBLESHOOTING.md](./WEB_DEPLOYMENT_TROUBLESHOOTING.md)
+| Guide | Purpose | Time |
+|-------|---------|------|
+| [START_HERE.md](./START_HERE.md) | Overview & getting started | 2 min |
+| [DEPLOY_WEB_NOW.md](./DEPLOY_WEB_NOW.md) | Main deployment guide | 10 min |
+| [QUICK_DEPLOY_REFERENCE.md](./QUICK_DEPLOY_REFERENCE.md) | Quick reference card | 1 min |
+| [DEPLOYMENT_OVERVIEW.md](./DEPLOYMENT_OVERVIEW.md) | Architecture & overview | 5 min |
+| [DEPLOYMENT_STATUS.md](./DEPLOYMENT_STATUS.md) | Progress tracker | - |
+| [WEB_DEPLOYMENT_GUIDE.md](./WEB_DEPLOYMENT_GUIDE.md) | Detailed guide | 15 min |
+| [WEB_DEPLOYMENT_CHECKLIST.md](./WEB_DEPLOYMENT_CHECKLIST.md) | Interactive checklist | - |
+| [WEB_DEPLOYMENT_TROUBLESHOOTING.md](./WEB_DEPLOYMENT_TROUBLESHOOTING.md) | Problem solving | - |
 
 ### Alternative Deployment Options
 
