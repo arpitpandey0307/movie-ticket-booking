@@ -173,22 +173,34 @@ npm run test:property
 
 ## 🚢 Deployment
 
-### Frontend (Vercel)
+### Quick Deploy to Railway
 
+**Backend API (Already Deployed ✅)**
+- See [RAILWAY_SETUP.md](./RAILWAY_SETUP.md) for API deployment details
+- API URL: `https://your-api-service.up.railway.app`
+
+**Frontend Web App (Deploy Now! 🚀)**
+- See [QUICK_WEB_DEPLOY.md](./QUICK_WEB_DEPLOY.md) for 5-minute deployment
+- See [WEB_DEPLOYMENT_GUIDE.md](./WEB_DEPLOYMENT_GUIDE.md) for detailed guide
+- See [WEB_DEPLOYMENT_CHECKLIST.md](./WEB_DEPLOYMENT_CHECKLIST.md) for step-by-step checklist
+
+### Deployment Guides
+
+- **API Deployment**: [RAILWAY_SETUP.md](./RAILWAY_SETUP.md)
+- **Web Deployment**: [WEB_DEPLOYMENT_GUIDE.md](./WEB_DEPLOYMENT_GUIDE.md)
+- **Quick Start**: [QUICK_WEB_DEPLOY.md](./QUICK_WEB_DEPLOY.md)
+- **Troubleshooting**: [WEB_DEPLOYMENT_TROUBLESHOOTING.md](./WEB_DEPLOYMENT_TROUBLESHOOTING.md)
+
+### Alternative Deployment Options
+
+**Frontend (Vercel)**
 ```bash
-# Deploy to Vercel
 cd apps/web
 vercel --prod
 ```
 
-### Backend (Railway/AWS ECS)
-
+**Backend (AWS ECS)**
 ```bash
-# Deploy to Railway
-cd apps/api
-railway up
-
-# Or build Docker image for ECS
 docker build -t movie-booking-api .
 docker push <your-registry>/movie-booking-api:latest
 ```
