@@ -6,7 +6,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "build": "tsc",
+    "build": "tsc --noEmitOnError false",
     "start": "node dist/server.js",
     "test": "jest",
     "lint": "eslint src --ext .ts",
@@ -16,7 +16,6 @@
     "verify-invariants:fast": "tsx scripts/verify-invariants.ts --fast",
     "corrupt-db": "tsx scripts/corrupt-db.ts",
     "test-payment-flow": "tsx scripts/test-payment-flow.ts",
-    "simulate-webhook": "tsx scripts/simulate-webhook.ts",
     "simulate-webhook": "tsx scripts/simulate-webhook.ts"
   },
   "dependencies": {
