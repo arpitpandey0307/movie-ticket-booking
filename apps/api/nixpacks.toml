@@ -3,12 +3,12 @@ nixPkgs = ["nodejs", "npm"]
 
 [phases.install]
 cmds = [
-  "npm install --workspace=packages/prisma --workspace=packages/shared-types --workspace=apps/api"
+  "npm install"
 ]
 
 [phases.build]
 cmds = [
-  "npx prisma generate --schema=../../packages/prisma/schema.prisma",
+  "npx prisma generate",
   "npm run build"
 ]
 
