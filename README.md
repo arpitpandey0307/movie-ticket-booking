@@ -6,6 +6,13 @@
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)](https://www.typescriptlang.org/)
 
+## 🌐 Live Demo
+
+**🎬 [View Live Website](https://movie-bookingweb-production.up.railway.app)**
+
+- Frontend: https://movie-bookingweb-production.up.railway.app
+- API: https://movie-bookingapi-production.up.railway.app
+
 ## 🎯 Features
 
 - ✅ **Multi-Role System**: Admin, Theater Owner, and User roles with distinct capabilities
