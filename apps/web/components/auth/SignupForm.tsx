@@ -49,9 +49,9 @@ export default function SignupForm() {
       const response = await apiClient.post('/api/auth/signup', data);
 
       if (response.data.success) {
-        const { user, token } = response.data.data;
-        setAuth(user, token);
-        router.push('/');
+        const { userId, email } = response.data.data;
+        // Redirect to OTP verification page with userId
+        router.push(`/verify-email?userId=${userId}&email=${encodeURIComponent(email)}&type=signup`);
       }
     } catch (err: any) {
       setError(err.response?.data?.error?.message || 'Signup failed');

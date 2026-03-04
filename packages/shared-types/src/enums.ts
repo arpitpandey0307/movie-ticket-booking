@@ -36,3 +36,9 @@ export enum PaymentStatus {
   FAILED = 'FAILED',
   CANCELLED = 'CANCELLED',
 }
+
+export enum VerificationType {
+  SIGNUP = 'SIGNUP',
+  LOGIN = 'LOGIN',
+  PASSWORD_RESET = 'PASSWORD_RESET',
+}

@@ -37,9 +37,18 @@ export default function LoginForm() {
       const response = await apiClient.post('/api/auth/login', data);
 
       if (response.data.success) {
-        const { user, token } = response.data.data;
-        setAuth(user, token);
-        router.push('/');
+        const responseData = response.data.data;
+        
+        // Check if OTP verification is required
+        if (responseData.requiresOTP) {
+          // Redirect to OTP verification page
+          router.push(`/verify-email?userId=${responseData.userId}&type=login`);
+        } else {
+          // Normal login flow
+          const { user, token } = responseData;
+          setAuth(user, token);
+          router.push('/');
+        }
       }
     } catch (err: any) {
       setError(err.response?.data?.error?.message || 'Login failed');
@@ -76,9 +85,17 @@ export default function LoginForm() {
         </div>
 
         <div>
-          <label htmlFor="password" className="block text-sm font-medium mb-1">
-            Password
-          </label>
+          <div className="flex items-center justify-between mb-1">
+            <label htmlFor="password" className="block text-sm font-medium">
+              Password
+            </label>
+            <a
+              href="/forgot-password"
+              className="text-sm text-indigo-600 hover:text-indigo-500"
+            >
+              Forgot password?
+            </a>
+          </div>
           <input
             {...register('password')}
             type="password"

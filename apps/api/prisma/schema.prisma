@@ -12,27 +12,55 @@ datasource db {
 
 // User model
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  firstName String
-  lastName  String
-  phone     String?
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String    @id @default(uuid())
+  email              String    @unique
+  password           String
+  firstName          String
+  lastName           String
+  phone              String?
+  role               Role      @default(USER)
+  emailVerified      Boolean   @default(false) // ENTERPRISE: Email verification status
+  accountLockedUntil DateTime? // ENTERPRISE: Account lockout for security
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  theaters  Theater[]
-  bookings  Booking[]
-  seatLocks SeatLock[]
+  theaters            Theater[]
+  bookings            Booking[]
+  seatLocks           SeatLock[]
+  emailVerifications  EmailVerification[]
 
   @@index([email])
+  @@index([emailVerified])
 }
 
 enum Role {
   ADMIN
   THEATER_OWNER
   USER
+}
+
+// EmailVerification model - ENTERPRISE: OTP-based email verification
+model EmailVerification {
+  id        String           @id @default(uuid())
+  userId    String
+  otpHash   String // ENTERPRISE: Hashed OTP for security
+  type      VerificationType
+  expiresAt DateTime
+  attempts  Int              @default(0)
+  verified  Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@index([expiresAt])
+  @@index([userId, type, verified])
+}
+
+enum VerificationType {
+  SIGNUP
+  LOGIN
+  PASSWORD_RESET
 }
 
 // Movie model

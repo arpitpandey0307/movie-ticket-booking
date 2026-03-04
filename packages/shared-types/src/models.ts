@@ -1,4 +1,4 @@
-import { Role, TheaterStatus, SeatType, SeatStatus, BookingStatus, PaymentStatus } from './enums';
+import { Role, TheaterStatus, SeatType, SeatStatus, BookingStatus, PaymentStatus, VerificationType } from './enums';
 
 // User model
 export interface User {
@@ -8,6 +8,8 @@ export interface User {
   lastName: string;
   phone?: string;
   role: Role;
+  emailVerified: boolean;
+  accountLockedUntil?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -141,4 +143,16 @@ export interface WebhookEvent {
   processingError?: string;
   createdAt: Date;
   processedAt?: Date;
+}
+
+// EmailVerification model
+export interface EmailVerification {
+  id: string;
+  userId: string;
+  otpHash: string;
+  type: VerificationType;
+  expiresAt: Date;
+  attempts: number;
+  verified: boolean;
+  createdAt: Date;
 }

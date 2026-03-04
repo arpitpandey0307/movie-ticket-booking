@@ -21,6 +21,44 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+// OTP validators
+export const verifyOTPSchema = z.object({
+  userId: z.string().uuid('Invalid user ID'),
+  otp: z
+    .string()
+    .length(6, 'OTP must be 6 digits')
+    .regex(/^\d{6}$/, 'OTP must contain only digits'),
+});
+
+export const resendOTPSchema = z.object({
+  userId: z.string().uuid('Invalid user ID'),
+  type: z.enum(['SIGNUP', 'LOGIN', 'PASSWORD_RESET'], {
+    errorMap: () => ({ message: 'Invalid verification type' }),
+  }),
+});
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email('Invalid email address'),
+});
+
+export const verifyResetOTPSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  otp: z
+    .string()
+    .length(6, 'OTP must be 6 digits')
+    .regex(/^\d{6}$/, 'OTP must contain only digits'),
+});
+
+export const resetPasswordSchema = z.object({
+  resetToken: z.string().min(1, 'Reset token is required'),
+  newPassword: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
+});
+
 // Movie validators
 export const createMovieSchema = z.object({
   title: z.string().min(1, 'Title is required'),
