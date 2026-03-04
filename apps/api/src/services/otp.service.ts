@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
-import { prisma } from '../lib/prisma';
+import prisma from '../lib/prisma';
 import { VerificationType } from '@repo/shared-types';
 
 // OTP Configuration
