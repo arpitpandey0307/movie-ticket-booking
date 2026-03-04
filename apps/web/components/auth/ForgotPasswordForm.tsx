@@ -31,7 +31,7 @@ export default function ForgotPasswordForm({ onSubmit }: ForgotPasswordFormProps
   if (success) {
     return (
       <div className="w-full max-w-md mx-auto">
-        <div className="bg-white rounded-lg shadow-lg p-8">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
           <div className="text-center">
             <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
               <svg
@@ -48,10 +48,10 @@ export default function ForgotPasswordForm({ onSubmit }: ForgotPasswordFormProps
                 />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
               Check Your Email
             </h2>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
               If an account exists with <strong>{email}</strong>, you will receive a
               password reset code shortly.
             </p>
@@ -69,7 +69,7 @@ export default function ForgotPasswordForm({ onSubmit }: ForgotPasswordFormProps
 
   return (
     <div className="w-full max-w-md mx-auto">
-      <div className="bg-white rounded-lg shadow-lg p-8">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
         <div className="text-center mb-6">
           <div className="mx-auto w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
             <svg
@@ -86,10 +86,10 @@ export default function ForgotPasswordForm({ onSubmit }: ForgotPasswordFormProps
               />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
             Forgot Password?
           </h2>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-gray-300">
             Enter your email and we'll send you a code to reset your password
           </p>
         </div>
@@ -98,7 +98,7 @@ export default function ForgotPasswordForm({ onSubmit }: ForgotPasswordFormProps
           <div>
             <label
               htmlFor="email"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
             >
               Email Address
             </label>
@@ -109,7 +109,7 @@ export default function ForgotPasswordForm({ onSubmit }: ForgotPasswordFormProps
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={loading}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 dark:disabled:bg-gray-600"
               placeholder="you@example.com"
             />
             {error && <p className="mt-2 text-sm text-red-600">{error}</p>}

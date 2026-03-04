@@ -85,17 +85,9 @@ export default function LoginForm() {
         </div>
 
         <div>
-          <div className="flex items-center justify-between mb-1">
-            <label htmlFor="password" className="block text-sm font-medium">
-              Password
-            </label>
-            <a
-              href="/forgot-password"
-              className="text-sm text-indigo-600 hover:text-indigo-500"
-            >
-              Forgot password?
-            </a>
-          </div>
+          <label htmlFor="password" className="block text-sm font-medium mb-1">
+            Password
+          </label>
           <input
             {...register('password')}
             type="password"
@@ -115,6 +107,15 @@ export default function LoginForm() {
         >
           {isLoading ? 'Logging in...' : 'Login'}
         </button>
+
+        <div className="text-center">
+          <a
+            href="/forgot-password"
+            className="text-sm text-indigo-600 hover:text-indigo-500"
+          >
+            Forgot password?
+          </a>
+        </div>
       </form>
 
       <p className="mt-4 text-center text-sm text-gray-600">
