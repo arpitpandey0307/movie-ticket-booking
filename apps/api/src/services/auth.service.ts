@@ -367,57 +367,66 @@ export class AuthService {
    * Sends OTP to email if user exists
    */
   async requestPasswordReset(email: string) {
-    // Check rate limit
-    const rateLimit = await checkOTPGenerationRateLimit(email);
-    if (!rateLimit.allowed) {
-      // Return generic message to prevent email enumeration
+    try {
+      // Check rate limit
+      const rateLimit = await checkOTPGenerationRateLimit(email);
+      if (!rateLimit.allowed) {
+        // Return generic message to prevent email enumeration
+        return {
+          message:
+            'If an account exists with this email, you will receive a password reset code.',
+        };
+      }
+
+      // Find user
+      const user = await prisma.user.findUnique({
+        where: { email },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+        },
+      });
+
+      // Always return success message to prevent email enumeration
+      if (!user) {
+        return {
+          message:
+            'If an account exists with this email, you will receive a password reset code.',
+        };
+      }
+
+      // Check if account is locked
+      const lockStatus = await checkAccountLock(user.id);
+      if (lockStatus.locked) {
+        // Still return generic message
+        return {
+          message:
+            'If an account exists with this email, you will receive a password reset code.',
+        };
+      }
+
+      // Generate and send OTP
+      const verification = await createVerification(user.id, 'PASSWORD_RESET');
+      await sendOTPEmail(
+        user.email,
+        verification.otp,
+        'PASSWORD_RESET',
+        user.firstName
+      );
+
+      return {
+        message:
+          'If an account exists with this email, you will receive a password reset code.',
+      };
+    } catch (error: any) {
+      // Log error but return generic message
+      console.error('Password reset error:', error);
       return {
         message:
           'If an account exists with this email, you will receive a password reset code.',
       };
     }
-
-    // Find user
-    const user = await prisma.user.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-      },
-    });
-
-    // Always return success message to prevent email enumeration
-    if (!user) {
-      return {
-        message:
-          'If an account exists with this email, you will receive a password reset code.',
-      };
-    }
-
-    // Check if account is locked
-    const lockStatus = await checkAccountLock(user.id);
-    if (lockStatus.locked) {
-      // Still return generic message
-      return {
-        message:
-          'If an account exists with this email, you will receive a password reset code.',
-      };
-    }
-
-    // Generate and send OTP
-    const verification = await createVerification(user.id, 'PASSWORD_RESET');
-    await sendOTPEmail(
-      user.email,
-      verification.otp,
-      'PASSWORD_RESET',
-      user.firstName
-    );
-
-    return {
-      message:
-        'If an account exists with this email, you will receive a password reset code.',
-    };
   }
 
   /**
