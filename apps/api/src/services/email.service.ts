@@ -8,6 +8,8 @@ apiInstance.setApiKey(
 
 const FROM_EMAIL = process.env.SMTP_FROM || 'noreply@movietickets.com';
 
+// Email service using Brevo API
+
 export async function sendOTPEmail(
   to: string,
   otp: string,
